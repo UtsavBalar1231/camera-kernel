@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #include <linux/module.h>
@@ -287,6 +288,7 @@ int cam_flash_pmic_flush_request(struct cam_flash_ctrl *fctrl,
 	int rc = 0;
 	int i = 0, j = 0;
 	int frame_offset = 0;
+        bool is_off_needed = false;
 
 	if (!fctrl) {
 		CAM_ERR(CAM_FLASH, "Device data is NULL");
@@ -296,17 +298,37 @@ int cam_flash_pmic_flush_request(struct cam_flash_ctrl *fctrl,
 	if (type == FLUSH_ALL) {
 	/* flush all requests*/
 		for (i = 0; i < MAX_PER_FRAME_ARRAY; i++) {
-			fctrl->per_frame[i].cmn_attr.request_id = 0;
-			fctrl->per_frame[i].cmn_attr.is_settings_valid = false;
-			fctrl->per_frame[i].cmn_attr.count = 0;
-			for (j = 0; j < CAM_FLASH_MAX_LED_TRIGGERS; j++)
-				fctrl->per_frame[i].led_current_ma[j] = 0;
-		}
+                       if ((fctrl->per_frame[i].opcode ==
+                               CAMERA_SENSOR_FLASH_OP_OFF) &&
+                               (fctrl->per_frame[i].cmn_attr.request_id > 0) &&
+                               (fctrl->per_frame[i].cmn_attr.request_id <= req_id) &&
+                               fctrl->per_frame[i].cmn_attr.is_settings_valid) {
+                               is_off_needed = true;
+                               CAM_DBG(CAM_FLASH,
+                                       "FLASH_ALL: Turn off the flash for req %llu",
+                                       fctrl->per_frame[i].cmn_attr.request_id);
+                       }
+
+                       fctrl->per_frame[i].cmn_attr.request_id = 0;
+                       fctrl->per_frame[i].cmn_attr.is_settings_valid = false;
+                       fctrl->per_frame[i].cmn_attr.count = 0;
+                       for (j = 0; j < CAM_FLASH_MAX_LED_TRIGGERS; j++)
+                              fctrl->per_frame[i].led_current_ma[j] = 0;
+                }
 
 		cam_flash_pmic_flush_nrt(fctrl);
 	} else if ((type == FLUSH_REQ) && (req_id != 0)) {
 	/* flush request with req_id*/
 		frame_offset = req_id % MAX_PER_FRAME_ARRAY;
+
+                if (fctrl->per_frame[frame_offset].opcode ==
+                        CAMERA_SENSOR_FLASH_OP_OFF) {
+                        is_off_needed = true;
+                        CAM_DBG(CAM_FLASH,
+                                "FLASH_REQ: Turn off the flash for req %llu",
+                                fctrl->per_frame[frame_offset].cmn_attr.request_id);
+                }
+
 		fctrl->per_frame[frame_offset].cmn_attr.request_id = 0;
 		fctrl->per_frame[frame_offset].cmn_attr.is_settings_valid =
 			false;
@@ -320,6 +342,9 @@ int cam_flash_pmic_flush_request(struct cam_flash_ctrl *fctrl,
 		CAM_ERR(CAM_FLASH, "Invalid arguments");
 		return -EINVAL;
 	}
+
+        if (is_off_needed)
+                cam_flash_off(fctrl);
 
 	return rc;
 }
@@ -567,7 +592,9 @@ static int cam_flash_i2c_delete_req(struct cam_flash_ctrl *fctrl,
 		CAM_DBG(CAM_FLASH, "top: %llu, del_req_id:%llu",
 			top, del_req_id);
 	}
-	fctrl->func_tbl.flush_req(fctrl, FLUSH_REQ, del_req_id);
+
+        cam_flash_i2c_flush_nrt(fctrl);
+
 	return 0;
 }
 
@@ -577,6 +604,7 @@ static int cam_flash_pmic_delete_req(struct cam_flash_ctrl *fctrl,
 	int i = 0;
 	struct cam_flash_frame_setting *flash_data = NULL;
 	uint64_t top = 0, del_req_id = 0;
+        int frame_offset = 0;
 
 	if (req_id != 0) {
 		for (i = 0; i < MAX_PER_FRAME_ARRAY; i++) {
@@ -612,7 +640,16 @@ static int cam_flash_pmic_delete_req(struct cam_flash_ctrl *fctrl,
 			top, del_req_id);
 	}
 
-	fctrl->func_tbl.flush_req(fctrl, FLUSH_REQ, del_req_id);
+        /* delete the request */
+        frame_offset = req_id % MAX_PER_FRAME_ARRAY;
+        flash_data = &fctrl->per_frame[frame_offset];
+        flash_data->cmn_attr.request_id = 0;
+        flash_data->cmn_attr.is_settings_valid = false;
+        flash_data->cmn_attr.count = 0;
+
+        for (i = 0; i < CAM_FLASH_MAX_LED_TRIGGERS; i++)
+                flash_data->led_current_ma[i] = 0;
+
 	return 0;
 }
 

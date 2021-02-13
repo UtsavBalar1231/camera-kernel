@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #ifndef __UAPI_LINUX_CAM_REQ_MGR_H
@@ -274,6 +275,7 @@ struct cam_req_mgr_link_control {
 #define CAM_MEM_FLAG_CACHE                      (1<<10)
 #define CAM_MEM_FLAG_HW_SHARED_ACCESS           (1<<11)
 #define CAM_MEM_FLAG_CDSP_OUTPUT                (1<<12)
+#define CAM_MEM_FLAG_DISABLE_DELAYED_UNMAP      (1<<13)
 
 #define CAM_MEM_MMU_MAX_HANDLE                  16
 
