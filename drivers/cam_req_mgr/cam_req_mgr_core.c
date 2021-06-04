@@ -533,31 +533,34 @@ static void __cam_req_mgr_validate_crm_wd_timer(
 	CAM_DBG(CAM_CRM,
 		"rd_idx: %d idx: %d current_frame_timeout: %d ms",
 		in_q->rd_idx, idx, current_frame_timeout);
-
-	if ((next_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT) >
-		link->watchdog->expires) {
-		CAM_DBG(CAM_CRM,
-			"Modifying wd timer expiry from %d ms to %d ms",
-			link->watchdog->expires,
-			(next_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT));
-		crm_timer_modify(link->watchdog,
-			next_frame_timeout +
-			CAM_REQ_MGR_WATCHDOG_TIMEOUT);
-	} else if (current_frame_timeout) {
-		CAM_DBG(CAM_CRM,
-			"Reset wd timer to current frame from %d ms to %d ms",
-			link->watchdog->expires,
-			(current_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT));
-		crm_timer_modify(link->watchdog,
-			current_frame_timeout +
-			CAM_REQ_MGR_WATCHDOG_TIMEOUT);
-	} else if (link->watchdog->expires >
-		CAM_REQ_MGR_WATCHDOG_TIMEOUT) {
-		CAM_DBG(CAM_CRM,
-			"Reset wd timer to default from %d ms to %d ms",
-			link->watchdog->expires, CAM_REQ_MGR_WATCHDOG_TIMEOUT);
-		crm_timer_modify(link->watchdog,
-			CAM_REQ_MGR_WATCHDOG_TIMEOUT);
+	if (link->watchdog == NULL) {
+		CAM_ERR(CAM_CRM, "watchdog == null,link:%p", link);
+	} else {
+		if ((next_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT) >
+			link->watchdog->expires) {
+			CAM_DBG(CAM_CRM,
+				"Modifying wd timer expiry from %d ms to %d ms",
+				link->watchdog->expires,
+				(next_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT));
+			crm_timer_modify(link->watchdog,
+				next_frame_timeout +
+				CAM_REQ_MGR_WATCHDOG_TIMEOUT);
+		} else if (current_frame_timeout) {
+			CAM_DBG(CAM_CRM,
+				"Reset wd timer to current frame from %d ms to %d ms",
+				link->watchdog->expires,
+				(current_frame_timeout + CAM_REQ_MGR_WATCHDOG_TIMEOUT));
+			crm_timer_modify(link->watchdog,
+				current_frame_timeout +
+				CAM_REQ_MGR_WATCHDOG_TIMEOUT);
+		} else if (link->watchdog->expires >
+			CAM_REQ_MGR_WATCHDOG_TIMEOUT) {
+			CAM_DBG(CAM_CRM,
+				"Reset wd timer to default from %d ms to %d ms",
+				link->watchdog->expires, CAM_REQ_MGR_WATCHDOG_TIMEOUT);
+			crm_timer_modify(link->watchdog,
+				CAM_REQ_MGR_WATCHDOG_TIMEOUT);
+		}
 	}
 }
 
@@ -1897,6 +1900,8 @@ static struct cam_req_mgr_core_link *__cam_req_mgr_reserve_link(
 		if (!atomic_cmpxchg(&g_links[i].is_used, 0, 1)) {
 			link = &g_links[i];
 			CAM_DBG(CAM_CRM, "alloc link index %d", i);
+			CAM_DBG(CAM_CRM, "__cam_req_mgr_reserve_link :%p",
+				link);
 			cam_req_mgr_core_link_reset(link);
 			break;
 		}
@@ -1967,6 +1972,7 @@ static void __cam_req_mgr_free_link(struct cam_req_mgr_core_link *link)
 	link->req.in_q = NULL;
 	i = link - g_links;
 	CAM_DBG(CAM_CRM, "free link index %d", i);
+	CAM_DBG(CAM_CRM, "__cam_req_mgr_free_link :%p", link);
 	cam_req_mgr_core_link_reset(link);
 	atomic_set(&g_links[i].is_used, 0);
 }
@@ -3734,6 +3740,7 @@ int cam_req_mgr_core_device_init(void)
 		mutex_init(&g_links[i].lock);
 		spin_lock_init(&g_links[i].link_state_spin_lock);
 		atomic_set(&g_links[i].is_used, 0);
+		CAM_DBG(CAM_CRM, "cam_req_mgr_core_device_init: %p",&g_links[i]);
 		cam_req_mgr_core_link_reset(&g_links[i]);
 	}
 	return 0;
