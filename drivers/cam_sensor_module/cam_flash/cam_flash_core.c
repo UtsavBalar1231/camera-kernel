@@ -698,16 +698,6 @@ int cam_flash_i2c_apply_setting(struct cam_flash_ctrl *fctrl,
 				list) {
 				rc = cam_sensor_util_i2c_apply_setting
 					(&(fctrl->io_master_info), i2c_list);
-				if ((rc == -EAGAIN) &&
-					(fctrl->io_master_info.master_type ==
-					CCI_MASTER)) {
-					CAM_WARN(CAM_FLASH,
-						"CCI HW is in reset mode: Reapplying Init settings");
-					usleep_range(1000, 1010);
-					rc = cam_sensor_util_i2c_apply_setting
-					(&(fctrl->io_master_info), i2c_list);
-				}
-
 				if (rc) {
 					CAM_ERR(CAM_FLASH,
 					"Failed to apply init settings: %d",
@@ -1453,15 +1443,6 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 				CAM_ERR(CAM_FLASH,
 					"Apply setting failed: %d",
 					rc);
-
-			//xiaomi add start
-			if(rc && CAM_FLASH_STATE_START == fctrl->flash_state)
-			{
-				CAM_ERR(CAM_FLASH, "cannot apply settings rc = %d for state %d",
-						rc, fctrl->flash_state);
-				return rc;
-			}
-			//xiaomi add end
 
 			fctrl->flash_state = CAM_FLASH_STATE_CONFIG;
 			break;
