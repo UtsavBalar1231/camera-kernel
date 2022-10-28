@@ -21,7 +21,6 @@
 #include "cam_common_util.h"
 #include <linux/slub_def.h>
 
-/* Xiaomi: enlarge from 60 to 120 */
 #define CAM_REQ_MGR_EVENT_MAX 120
 
 static struct cam_req_mgr_device g_dev;
